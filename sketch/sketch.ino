@@ -15,6 +15,17 @@ byte mac[] = {
 EthernetClient client;
 DHT dht(DHTPIN, DHTTYPE);
 
+
+//Thing Speak Stuff
+
+char thingSpeakAddress[] = "api.thingspeak.com";
+String APIKey = "8B06KW8NU2ZUVT26";              //enter your channel's Write API Key
+const int updateThingSpeakInterval = 30 * 1000;  // 20 second interval at which to update ThingSpeak
+
+// Variable Setup
+long lastConnectionTime = 0;
+boolean lastConnected = false;
+
 void setup() {
   // put your setup code here, to run once:
 
@@ -46,6 +57,7 @@ void loop() {
 
  // Reading temperature or humidity takes about 250 milliseconds!
   // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
+  delay(2000);
   int h = dht.readHumidity();
   int t = dht.readTemperature();
 
@@ -61,7 +73,15 @@ void loop() {
     Serial.println(" *C");
   }
 
-delay(2000);
+//Convert to Strings
+String temp = String(t);
+String humidity = String(h);
+
+if (!client.connected() && (millis() - lastConnectionTime > updateThingSpeakInterval)) {
+    updateThingSpeak("field1=" + temp + "&field2=" + humidity);
+  }
+
+lastConnected = client.connected();
 }
 
 void printIPAddress()
@@ -76,5 +96,25 @@ void printIPAddress()
   Serial.println();
 }
 
+
+void updateThingSpeak(String tsData) {
+  if (client.connect(thingSpeakAddress, 80)) {
+    client.print("POST /update HTTP/1.1\n");
+    client.print("Host: api.thingspeak.com\n");
+    client.print("Connection: close\n");
+    client.print("X-THINGSPEAKAPIKEY: " + APIKey + "\n");
+    client.print("Content-Type: application/x-www-form-urlencoded\n");
+    client.print("Content-Length: ");
+    client.print(tsData.length());
+    client.print("\n\n");
+    client.print(tsData);
+    lastConnectionTime = millis();
+
+    if (client.connected()) {
+      Serial.println("Connecting to ThingSpeak...");
+      Serial.println();
+    }
+  }
+}
 
 
